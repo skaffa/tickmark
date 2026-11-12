@@ -1,18 +1,19 @@
-# Tallymark: plan
+# Tickmark: plan
 
-Tallymark is a client-side Fabric mod for Minecraft 26.3 that measures farm output: items per hour, per item, at a
+Tickmark is a client-side Fabric mod for Minecraft 26.3 that measures farm output: items per hour, per item, at a
 marked output (container, container group or box area), with a trend and a trust level.
 
 Status: M1 done 2026-11-12 (skeleton, core maths, 34 unit tests). M2 next, waiting for the go.
 
 ## 0. Name
 
-- **Tallymark** (id `tallymark`, package `dev.tallymark`, command `/tallymark` with short alias `/tm`,
-  files in `config/tallymark/`). Chosen 2026-11-12.
-- The working name Tally was dropped: the Modrinth slug `tally` is taken by a survival advancement pack
-  (Fabric / server, 26.2-26.3) that may also use the mod id `tally` and a `/tally` command.
-- Modrinth slug `tallymark` and GitHub `skaffa/tallymark` were free on 2026-11-12. The project folder
-  stays `C:\Users\henk\Documents\tally` as the prompt asked.
+- **Tickmark** (id `tickmark`, package `dev.tickmark`, command `/tickmark` with short alias `/tm`,
+  files in `config/tickmark/`). Chosen 2026-11-12. "Tick marks" are the tally strokes in the icon, and
+  rates run on the game *tick* clock.
+- Earlier names: Tally (Modrinth slug taken by a survival advancement pack that may also use the mod
+  id `tally` and a `/tally` command), then Tallymark (free, but the user wanted a better name).
+- Modrinth slug `tickmark` (no project titled Tickmark either) and GitHub `skaffa/tickmark` were free
+  on 2026-11-12. The project folder stays `C:\Users\henk\Documents\tally` as the prompt asked.
 
 ## 1. Facts checked in 26.3 code
 
@@ -21,9 +22,9 @@ All checked with `javap` on `minecraft-{common,clientonly}-deobf-26.3.jar`.
 | Fact | Evidence | Consequence |
 |---|---|---|
 | Entity removal reasons exist only on the server: `KILLED, DISCARDED, UNLOADED_TO_CHUNK, UNLOADED_WITH_PLAYER, CHANGED_DIMENSION`. | `Entity$RemovalReason` | The client never learns *why* an entity left. |
-| `ClientboundRemoveEntitiesPacket` carries only `IntList entityIds()`. No reason. | record fields | Hopper pickup, despawn, merge, burning, void and leaving tracking range all look the same. Tallymark must infer the cause. |
+| `ClientboundRemoveEntitiesPacket` carries only `IntList entityIds()`. No reason. | record fields | Hopper pickup, despawn, merge, burning, void and leaving tracking range all look the same. Tickmark must infer the cause. |
 | Hopper / hopper-minecart pickup: `HopperBlockEntity.addItem(Container, ItemEntity)` copies the stack, inserts it, then `setItem(rest)` (partial) or `discard()` (all). No take packet. | bytecode of `addItem` | Partial pickup shows as a count drop on the entity (synced `DATA_ITEM`); full pickup shows as plain removal. |
-| `ClientboundTakeItemEntityPacket(itemId, playerId, amount)` is built only in `LivingEntity.take`. | only constructor call site | Pickup by the player, mobs, allays, etc. is announced with the collector's id and amount. Tallymark can subtract those exactly (not farm output to a container), or count them in the "player inventory" mode. |
+| `ClientboundTakeItemEntityPacket(itemId, playerId, amount)` is built only in `LivingEntity.take`. | only constructor call site | Pickup by the player, mobs, allays, etc. is announced with the collector's id and amount. Tickmark can subtract those exactly (not farm output to a container), or count them in the "player inventory" mode. |
 | Item merging: `ItemEntity.tryToMerge` / `merge(...)` raises one stack's count (synced via entity data) and discards the other. | `ItemEntity` methods | Conservation: total count of items in the area stays equal across a merge. Count by *sum of stack sizes*, not by entity count. |
 | `ItemEntity.age` is private and not synced; the client starts its own copy at spawn on the client. `LIFETIME` constant exists (6000 ticks). | fields | Client age is only a lower bound. Despawn guess: removed, client-age ≥ ~5900, no container near. |
 | Game time: `MinecraftServer` calls `forceGameTimeSynchronization()` when `tickCount % 20 == 0`, sending `ClientboundSetTimePacket(overworld gameTime, clocks)`. | bytecode of `tickServer` | Each packet = 20 server ticks. Server TPS = Δgame time / Δwall time between packets. Real lag detection without a server mod. |
@@ -37,7 +38,7 @@ Checked in M1 (2026-11-12):
 - Item entities: `EntityTypes.ITEM` uses `clientTrackingRange(6)` (6 chunks = 96 blocks, further
   capped by the server's view distance and `entity-broadcast-range-percentage`) and
   `updateInterval(20)`. Entity mode works only while the player is within that range of the counter;
-  Tallymark uses 80 blocks as the safe limit and treats removals beyond it as "unknown".
+  Tickmark uses 80 blocks as the safe limit and treats removals beyond it as "unknown".
 - Simulation distance: `ClientPacketListener.handleSetSimulationDistance` stores it;
   `ClientLevel.getServerSimulationDistance()` reads it. A chunk the client has but outside simulation
   distance does not tick, so the farm stops: treat it like "not loaded".
@@ -48,7 +49,7 @@ Checked in M1 (2026-11-12):
 
 ## 2. What the client can and cannot see
 
-| Situation | What Tallymark sees | Method | Trust |
+| Situation | What Tickmark sees | Method | Trust |
 |---|---|---|---|
 | Singleplayer / LAN host | Real container contents on the server thread | **Exact** (`server`) | Exact |
 | Multiplayer, items fall into the area as entities | Item entities, their stack sizes, their removal | **Entities** (`entity`) | Estimate, usually within a few % |
@@ -56,7 +57,7 @@ Checked in M1 (2026-11-12):
 | Multiplayer, output goes straight into a container (hopper chain from a closed system, no visible item entities) | Nothing until the player opens it | **Snapshots** (`open`) | Exact totals between opens, no detail inside |
 | Chunks not loaded on the client, or outside simulation distance | Nothing | gap | Period left out |
 
-Things Tallymark will never see in multiplayer: items moved hopper-to-hopper inside closed containers,
+Things Tickmark will never see in multiplayer: items moved hopper-to-hopper inside closed containers,
 items created directly in a container (e.g. a crafter or a composter output without entities),
 and anything beyond the client's entity tracking range.
 
@@ -117,14 +118,14 @@ Events and rules:
 ### 3.4 Snapshots (multiplayer, opened containers)
 - When the player opens a marked container, record the full contents (as Gauge does) with the game
   time. Gain between two opens = exact output for that span, if nothing was taken out in between by
-  the player (Tallymark sees the player's own clicks, so it can subtract them).
+  the player (Tickmark sees the player's own clicks, so it can subtract them).
 - Shown as a separate line "last checked 12 min ago: 1,284 iron/h (exact)" next to the live entity
   estimate. When both exist, the snapshot corrects the entity estimate's drift in the HUD.
 
 ### 3.5 Method selection
 - Singleplayer / LAN host → Exact.
 - Multiplayer → Entities if the counter has a box or a hopper is in or under it, plus Snapshots for
-  marked containers, plus Inventory if the player marks themself (`/tallymark mark self`).
+  marked containers, plus Inventory if the player marks themself (`/tickmark mark self`).
 - The HUD shows the method as a tag: `EXACT`, `ENTITY ~`, `INV`, `SNAPSHOT`, and a trust dot:
   green = exact, yellow = estimate with no unknown removals, orange = unknowns or gaps > 10% of the
   window.
@@ -162,27 +163,27 @@ Events and rules:
 
 - A counter: id (short number), name, dimension, kind (`container`, `group`, `box`, `self`),
   positions or AABB, output rule, item filter, created/paused flags, the bucket series.
-- Stored per world: `config/tallymark/worlds/<world-key>/counters.json`.
+- Stored per world: `config/tickmark/worlds/<world-key>/counters.json`.
   - World key: singleplayer save folder name; multiplayer server address (`host_port`), as other mods.
   - Saved on leave, every 5 min, and on change. Restored on join; the time away is a gap.
-- Exports: `config/tallymark/exports/<world>-<counter>-<yyyyMMdd-HHmmss>.csv`.
-- Settings: `config/tallymark/config.json` via a `ConfigStore` copied from Vire.
+- Exports: `config/tickmark/exports/<world>-<counter>-<yyyyMMdd-HHmmss>.csv`.
+- Settings: `config/tickmark/config.json` via a `ConfigStore` copied from Vire.
 
 ## 7. Player interface
 
 ### Marking
 - Key **U** (rebindable): mark the container under the crosshair; it joins the group of the counter
   you marked last if it is adjacent (chest walls); hold Shift to always start a new counter.
-- `/tallymark mark` (looked-at block), `/tallymark mark box <x1 y1 z1> <x2 y2 z2>` and a two-click box mode
-  (`/tallymark mark box` then U on two corners), `/tallymark mark self`.
-- `/tallymark name <id> <name>`, `/tallymark reset [id|all]`, `/tallymark pause [id|all]`,
-  `/tallymark list`, `/tallymark remove <id>`, `/tallymark export [id|all]`, `/tallymark config`, `/tallymark help`.
+- `/tickmark mark` (looked-at block), `/tickmark mark box <x1 y1 z1> <x2 y2 z2>` and a two-click box mode
+  (`/tickmark mark box` then U on two corners), `/tickmark mark self`.
+- `/tickmark name <id> <name>`, `/tickmark reset [id|all]`, `/tickmark pause [id|all]`,
+  `/tickmark list`, `/tickmark remove <id>`, `/tickmark export [id|all]`, `/tickmark config`, `/tickmark help`.
 - Key **I** (rebindable): toggle HUD. Both U and I are free in vanilla 26.3 and in the user's other
   mods (they use B G H J K M N R V Y Z).
 
 ### HUD panel
 ```
-Tallymark #2 Iron farm        EXACT ●
+Tickmark #2 Iron farm        EXACT ●
 iron_ingot   1,284/h   +2,140  ▁▂▄▅▄▆▅  stable
 poppy           62/h      +103  ▁▁▂▁▁▂▁  stable
 measured 1 h 40 m · 60 m window
@@ -198,7 +199,7 @@ which items (all / top N / filter), window, unit (per minute / hour / day), spar
 
 ### Settings screen
 Vanilla widgets, tooltips on every option, from Mod Menu (optional `modmenu` entrypoint, `suggests`)
-and `/tallymark config`. Code copied from Vire's `ConfigScreen`.
+and `/tickmark config`. Code copied from Vire's `ConfigScreen`.
 
 ## 8. Testing
 
@@ -237,7 +238,7 @@ Stop and report after each.
 4. **M4 Clock, lag and gaps.** TPS estimate, 20-TPS vs real rate, chunk / simulation distance /
    pause gaps, sparkline breaks. Self-test `gap`.
 5. **M5 World render, settings, export.** Gizmos outlines and labels, settings screen + Mod Menu,
-   `/tallymark export`. Screenshots checked.
+   `/tickmark export`. Screenshots checked.
 6. **M6 Delivery.** README (with the limits table from section 2), CHANGELOG, `media/modrinth-
    description.md`, gallery 1600×900 + `captions.md`. Ask before creating the GitHub repo or pushing.
 

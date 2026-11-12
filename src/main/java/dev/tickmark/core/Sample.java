@@ -1,4 +1,4 @@
-package dev.tallymark.core;
+package dev.tickmark.core;
 
 import java.util.Map;
 
@@ -14,7 +14,7 @@ import java.util.Map;
  *                  dimension, out of range): the ticks and items are left out of the rate
  * @param gains     items that arrived, by item id; never negative
  * @param lost      items seen to disappear without reaching the counter (despawn, lava): shown, not rated
- * @param unknown   items that disappeared for a reason Tallymark could not tell
+ * @param unknown   items that disappeared for a reason Tickmark could not tell
  */
 public record Sample(long fromTick, long toTick, long wallMillis, long endEpochMillis, boolean gap,
 		Map<String, Long> gains, long lost, long unknown) {

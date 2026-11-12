@@ -1,4 +1,4 @@
-package dev.tallymark.core;
+package dev.tickmark.core;
 
 /** How a counter measures (PLAN.md section 3); the tag is shown in the HUD and the CSV. */
 public enum Method {

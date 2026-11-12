@@ -1,4 +1,4 @@
-package dev.tallymark.core.config;
+package dev.tickmark.core.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Loads and saves {@link TallymarkConfig} inside the mod's own folder ({@code config/tallymark/}).
+ * Loads and saves {@link TickmarkConfig} inside the mod's own folder ({@code config/tickmark/}).
  * Minecraft-free so it can be unit tested. A file that cannot be parsed is kept as
  * {@code config.json.broken-<time>} and defaults are used.
  */
@@ -54,16 +54,16 @@ public final class ConfigStore {
 	}
 
 	/** Reads the config; a missing file gives defaults (and writes them), a broken one is backed up. */
-	public TallymarkConfig load() throws IOException {
+	public TickmarkConfig load() throws IOException {
 		lastBackup = null;
 		Path file = file();
 		if (!Files.isRegularFile(file)) {
-			TallymarkConfig fresh = new TallymarkConfig();
+			TickmarkConfig fresh = new TickmarkConfig();
 			save(fresh);
 			return fresh;
 		}
 		try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-			TallymarkConfig c = GSON.fromJson(r, TallymarkConfig.class);
+			TickmarkConfig c = GSON.fromJson(r, TickmarkConfig.class);
 			if (c == null) {
 				throw new JsonParseException("empty file");
 			}
@@ -71,14 +71,14 @@ public final class ConfigStore {
 		} catch (JsonParseException | IllegalStateException e) {
 			lastBackup = dir.resolve(FILE_NAME + ".broken-" + LocalDateTime.now(clock).format(STAMP));
 			Files.move(file, lastBackup, StandardCopyOption.REPLACE_EXISTING);
-			TallymarkConfig fresh = new TallymarkConfig();
+			TickmarkConfig fresh = new TickmarkConfig();
 			save(fresh);
 			return fresh;
 		}
 	}
 
 	/** Writes the config through a temp file so a crash never leaves half a file. */
-	public void save(TallymarkConfig config) throws IOException {
+	public void save(TickmarkConfig config) throws IOException {
 		Files.createDirectories(dir);
 		Path tmp = dir.resolve(FILE_NAME + ".tmp");
 		try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {

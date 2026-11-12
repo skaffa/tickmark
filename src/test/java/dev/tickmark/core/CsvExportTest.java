@@ -1,4 +1,4 @@
-package dev.tallymark.core;
+package dev.tickmark.core;
 
 import static org.junit.jupiter.api.Assertions.*;
 

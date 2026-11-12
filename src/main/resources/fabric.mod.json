@@ -1,24 +1,24 @@
 {
 	"schemaVersion": 1,
-	"id": "tallymark",
+	"id": "tickmark",
 	"version": "${version}",
-	"name": "Tallymark",
+	"name": "Tickmark",
 	"description": "Client-side farm rate meter: mark a farm's output chest, hopper line or collection area and see items per hour per item, with trend, lag correction and CSV export. Exact in singleplayer; estimates from item entities on servers. Sends no packets.",
 	"authors": [
 		"Skaffa",
 		"Claude (Anthropic)"
 	],
 	"contact": {
-		"homepage": "https://github.com/skaffa/tallymark",
-		"sources": "https://github.com/skaffa/tallymark",
-		"issues": "https://github.com/skaffa/tallymark/issues"
+		"homepage": "https://github.com/skaffa/tickmark",
+		"sources": "https://github.com/skaffa/tickmark",
+		"issues": "https://github.com/skaffa/tickmark/issues"
 	},
 	"license": "MIT",
-	"icon": "assets/tallymark/icon.png",
+	"icon": "assets/tickmark/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"dev.tallymark.client.TallymarkClient"
+			"dev.tickmark.client.TickmarkClient"
 		]
 	},
 	"depends": {

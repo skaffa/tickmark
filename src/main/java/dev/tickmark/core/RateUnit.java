@@ -1,4 +1,4 @@
-package dev.tallymark.core;
+package dev.tickmark.core;
 
 /** Display unit for rates. Ticks are at 20 TPS: one hour is 72,000 ticks. */
 public enum RateUnit {

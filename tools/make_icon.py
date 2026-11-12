@@ -1,11 +1,11 @@
-"""Generates the Tallymark icon as 32x32 pixel art, in the Ghost Mason / Ortho / Gauge icon style.
+"""Generates the Tickmark icon as 32x32 pixel art, in the Ghost Mason / Ortho / Gauge icon style.
 
 Style: dark rounded-square badge (#10161C) with 4-px stepped corners, soft radial glow, a block
 character with a cute face, cream 4-point sparkles. Subject: an output chest with a cute face under a
-cream tally mark (four strokes and a slash), the count Tallymark keeps.
+cream tally of tick marks (four strokes and a slash): the name, and the count Tickmark keeps.
 
 Usage: python tools/make_icon.py  -> media/icon.png (512), media/icon-128.png (128),
-       and src/main/resources/assets/tallymark/icon.png (128)
+       and src/main/resources/assets/tickmark/icon.png (128)
 """
 import math
 import os
@@ -121,4 +121,4 @@ def main(out_dir, res_dir):
 
 if __name__ == "__main__":
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    main(os.path.join(root, "media"), os.path.join(root, "src", "main", "resources", "assets", "tallymark"))
+    main(os.path.join(root, "media"), os.path.join(root, "src", "main", "resources", "assets", "tickmark"))

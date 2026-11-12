@@ -18,11 +18,11 @@ loom {
 			vmArgs "-Xms256M", "-Xmx2G"
 			// ./gradlew runClient -Pdevshots=...: scripted screenshots after joining (see DevShots)
 			if (project.hasProperty("devshots")) {
-				property "tallymark.devshots", project.property("devshots").toString()
+				property "tickmark.devshots", project.property("devshots").toString()
 			}
 			// ./gradlew runClient -Pselftest=<mode>: automated in-game self-test, logs SELFTEST PASS/FAIL and quits
 			if (project.hasProperty("selftest")) {
-				property "tallymark.selftest", project.property("selftest").toString()
+				property "tickmark.selftest", project.property("selftest").toString()
 			}
 		}
 		server {
@@ -33,7 +33,7 @@ loom {
 	}
 
 	mods {
-		"tallymark" {
+		"tickmark" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}

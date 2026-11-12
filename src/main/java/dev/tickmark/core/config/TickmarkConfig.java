@@ -1,9 +1,9 @@
-package dev.tallymark.core.config;
+package dev.tickmark.core.config;
 
-import dev.tallymark.core.RateUnit;
+import dev.tickmark.core.RateUnit;
 
-/** Settings saved in {@code config/tallymark/config.json}. Plain fields for Gson; {@link #clamp()} fixes bad values. */
-public final class TallymarkConfig {
+/** Settings saved in {@code config/tickmark/config.json}. Plain fields for Gson; {@link #clamp()} fixes bad values. */
+public final class TickmarkConfig {
 	public enum Corner {
 		TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
 	}
@@ -31,7 +31,7 @@ public final class TallymarkConfig {
 	/** Show the real-time rate when it differs from the 20 TPS rate by more than this share. */
 	public double lagNoteThreshold = 0.05;
 
-	public TallymarkConfig clamp() {
+	public TickmarkConfig clamp() {
 		if (hudCorner == null) {
 			hudCorner = Corner.TOP_RIGHT;
 		}

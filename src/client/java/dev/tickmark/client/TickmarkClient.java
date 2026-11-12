@@ -1,7 +1,7 @@
-package dev.tallymark.client;
+package dev.tickmark.client;
 
-import dev.tallymark.core.config.ConfigStore;
-import dev.tallymark.core.config.TallymarkConfig;
+import dev.tickmark.core.config.ConfigStore;
+import dev.tickmark.core.config.TickmarkConfig;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -13,12 +13,12 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /** Client entrypoint. M1: loads the config; counters, HUD and commands come in M2. */
-public final class TallymarkClient implements ClientModInitializer {
-	public static final String MOD_ID = "tallymark";
-	public static final Logger LOG = LoggerFactory.getLogger("Tallymark");
+public final class TickmarkClient implements ClientModInitializer {
+	public static final String MOD_ID = "tickmark";
+	public static final Logger LOG = LoggerFactory.getLogger("Tickmark");
 
 	private static ConfigStore store;
-	private static TallymarkConfig config = new TallymarkConfig();
+	private static TickmarkConfig config = new TickmarkConfig();
 
 	@Override
 	public void onInitializeClient() {
@@ -31,15 +31,15 @@ public final class TallymarkClient implements ClientModInitializer {
 		} catch (IOException e) {
 			LOG.error("could not load config, using defaults", e);
 		}
-		LOG.info("Tallymark loaded");
+		LOG.info("Tickmark loaded");
 	}
 
-	/** {@code config/tallymark/}: every file the mod writes goes here. */
+	/** {@code config/tickmark/}: every file the mod writes goes here. */
 	public static Path dir() {
 		return FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
 	}
 
-	public static TallymarkConfig config() {
+	public static TickmarkConfig config() {
 		return config;
 	}
 }

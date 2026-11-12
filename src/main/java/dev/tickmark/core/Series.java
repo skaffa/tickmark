@@ -1,4 +1,4 @@
-package dev.tallymark.core;
+package dev.tickmark.core;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
