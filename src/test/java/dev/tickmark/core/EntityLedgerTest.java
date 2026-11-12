@@ -52,6 +52,29 @@ class EntityLedgerTest {
 	}
 
 	@Test
+	void itemSeenOnlyAtItsRemovalIsCollected() {
+		// an idle hopper takes the item the tick after it spawns: the client learns of it from the removal
+		step(() -> {
+			l.see(onHopper(7, IRON, 1));
+			l.removed(new EntityLedger.Removal(7, false));
+		});
+		idle(3);
+		assertEquals(Map.of(IRON, 1L), l.take().gains);
+	}
+
+	@Test
+	void fallingItemReachesTheHopperBetweenScans() {
+		// last scan: still in the air above the hopper
+		step(new EntityLedger.Seen(3, IRON, 1, true, false, 10));
+		// removal: by now it is on the hopper
+		step(() -> l.removed(new EntityLedger.Removal(3, false, true)));
+		idle(3);
+		EntityLedger.Events e = l.take();
+		assertEquals(Map.of(IRON, 1L), e.gains);
+		assertEquals(0, e.unknown);
+	}
+
+	@Test
 	void partialHopperPickupIsCollected() {
 		step(onHopper(1, KELP, 64));
 		step(onHopper(1, KELP, 63));

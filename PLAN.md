@@ -3,7 +3,7 @@
 Tickmark is a client-side Fabric mod for Minecraft 26.3 that measures farm output: items per hour, per item, at a
 marked output (container, container group or box area), with a trend and a trust level.
 
-Status: M2 done 2026-11-12 (exact mode, counters, HUD, labels, self-test `exact` passes). M3 next, waiting for the go.
+Status: M3 done 2026-11-12 (entity, inventory and snapshot methods; self-tests `exact` and `entity` pass). M4 next, waiting for the go.
 
 ## 0. Name
 
@@ -34,6 +34,18 @@ All checked with `javap` on `minecraft-{common,clientonly}-deobf-26.3.jar`.
 | Container contents arrive only through `ClientboundContainerSetContentPacket` / `...SetSlotPacket` while the menu is open. `handleBlockEntityData` does not carry chest items. | packet handlers; Gauge experience | Unopened containers are invisible in multiplayer (as the prompt says). |
 | Player inventory: `handleContainerSetSlot` (menu 0 / inventory), `handleSetPlayerInventory`, `handleSetCursorItem`. | `ClientPacketListener` | Inventory gains are visible exactly. |
 | Integrated server: `mc.getSingleplayerServer()` → `IntegratedServer`; `isPaused()`, `getTickCount()`, `tickRateManager()`, `getAverageTickTimeNanos()`, `server.execute(...)`, `getLevel(dim)`. | `IntegratedServer`, `MinecraftServer` | Gauge's ServerPeek pattern works: read containers on the server thread, publish an immutable snapshot. |
+
+Found in the M3 tests on the test server (2026-11-12):
+- An idle hopper takes an item the server tick after it spawns on it. The spawn and the removal then
+  reach the client in the same frame, so a per-tick scan never sees the item. Tickmark records an
+  unseen item at its removal (the entity is still in the level when the hook runs) if it is in a
+  counter's zone.
+- A falling item is usually still in the air at the last scan and reaches the hopper between scans,
+  and the client's copy can trail the server's: at `/tick rate 10` items were removed while their
+  client copy had not moved at all (age 0, at the spawn point, 3 blocks above the hopper). So
+  "collected" asks where the item lands: the first block with a collision shape straight below it
+  (through air, up to 6 blocks) is a hopper or container. Checked at every scan and again at removal.
+  Before this, 85% (and later 7%) of falling items were "unknown"; after it, 0 in the self-test.
 
 Checked in M1 (2026-11-12):
 - Item entities: `EntityTypes.ITEM` uses `clientTrackingRange(6)` (6 chunks = 96 blocks, further

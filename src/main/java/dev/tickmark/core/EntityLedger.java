@@ -44,8 +44,16 @@ public final class EntityLedger {
 	public record Seen(int id, String item, int count, boolean inZone, boolean nearCollector, int clientAge) {
 	}
 
-	/** Why an entity left the client, as far as the client can tell at that moment. */
-	public record Removal(int id, boolean outOfSight) {
+	/**
+	 * Why an entity left the client, as far as the client can tell at that moment.
+	 *
+	 * @param nearCollector where the entity is at removal: a falling item is above the hopper at the
+	 *                      last scan and only reaches it between scans
+	 */
+	public record Removal(int id, boolean outOfSight, boolean nearCollector) {
+		public Removal(int id, boolean outOfSight) {
+			this(id, outOfSight, false);
+		}
 	}
 
 	/** Totals the ledger hands to the sampler, then forgets. */
@@ -159,7 +167,8 @@ public final class EntityLedger {
 			return;
 		}
 		Integer taken = takenThisTick.remove(r.id());
-		pending.add(new Pending(now, t.item, t.count, t.nearCollector, t.clientAge, t.inZone, r.outOfSight(), taken != null));
+		pending.add(new Pending(now, t.item, t.count, t.nearCollector || r.nearCollector(), t.clientAge, t.inZone, r.outOfSight(),
+				taken != null));
 	}
 
 	/** Entities not seen this tick that were not removed either (moved out of the search area). */

@@ -62,7 +62,8 @@ final class WorldOverlay {
 			}
 			Vec3 at = new Vec3(centre[0], top + 0.45, centre[2]);
 			String line = c.label() + "  " + (c.paused ? "paused" : c.method == null ? "not measured" : c.method.tag());
-			Gizmos.billboardText(line, at.add(0, 0.45, 0), TextGizmo.Style.forColorAndCentered(color).withScale(SMALL))
+			// white: coloured text is hard to read against the sky; the outline carries the trust colour
+			Gizmos.billboardText(line, at.add(0, 0.45, 0), TextGizmo.Style.forColorAndCentered(0xFFFFFFFF).withScale(SMALL))
 					.setAlwaysOnTop();
 			var ids = c.series.total().itemsByCount();
 			if (!ids.isEmpty()) {

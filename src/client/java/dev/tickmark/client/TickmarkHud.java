@@ -243,7 +243,8 @@ final class TickmarkHud {
 			if (!Double.isNaN(snap)) {
 				long span = c.snapshots.values().stream().filter(dev.tickmark.core.SnapshotLog::measured)
 						.mapToLong(l -> l.gainTicks).max().orElse(0);
-				notes.add("Opened: " + Format.rate(snap) + unit.suffix() + " " + Format.shortId(top) + " over " + Format.duration(span)
+				String name = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(top))).getHoverName().getString();
+				notes.add("Opened: " + Format.rate(snap) + unit.suffix() + " " + name + " over " + Format.duration(span)
 						+ " (exact)");
 			} else if (c.kind != Counter.Kind.BOX) {
 				notes.add("Open it, close it, open it later: exact check");

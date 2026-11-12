@@ -49,6 +49,14 @@ public final class Live {
 	/** Per counter: whether the zone has a hopper or container (decides the automatic rule). */
 	private static final Map<Integer, Boolean> HAS_COLLECTOR = new HashMap<>();
 
+	/** Dev counters for the self-test log: entities seen, removal ids hooked, of which tracked, take packets. */
+	public static long debugSeen;
+	public static long debugRemoved;
+	public static long debugRemovedTracked;
+	public static long debugTakes;
+	/** Logs removals that are not at a collector (self-test runs only). */
+	private static final boolean DEBUG = !System.getProperty("tickmark.selftest", "").isEmpty();
+
 	private Live() {
 	}
 
@@ -88,8 +96,10 @@ public final class Live {
 		if (level == null || mc.player == null) {
 			return;
 		}
+		debugTakes++;
+		Entity taken = level.getEntity(itemId);
 		for (Counter c : Tickmark.counters.counters) {
-			if (c.ledger != null && c.ledger.tracks(itemId)) {
+			if (c.ledger != null && (c.ledger.tracks(itemId) || lateSee(level, c, taken))) {
 				c.ledger.taken(itemId, amount);
 			}
 		}
@@ -112,16 +122,44 @@ public final class Live {
 		}
 		double sight = sight(mc);
 		ids.forEach(id -> {
+			debugRemoved++;
+			Entity e = level.getEntity(id);
 			for (Counter c : Tickmark.counters.counters) {
-				if (c.ledger == null || !c.ledger.tracks(id)) {
+				if (c.ledger == null || !c.ledger.tracks(id) && !lateSee(level, c, e)) {
 					continue;
 				}
-				Entity e = level.getEntity(id);
+				debugRemovedTracked++;
 				boolean outOfSight = e == null || e.distanceTo(mc.player) > sight - 8
 						|| !level.hasChunk(e.blockPosition().getX() >> 4, e.blockPosition().getZ() >> 4);
-				c.ledger.removed(new EntityLedger.Removal(id, outOfSight));
+				boolean near = e instanceof ItemEntity ie && nearCollector(level, ie);
+				if (DEBUG && !near && e != null) {
+					BlockPos p = e.blockPosition();
+					Tickmark.LOG.info("[live] removal not at a collector: id {} at {} (age {}, motion {}); blocks {} / {} / {} / {}", id,
+							e.position(), e instanceof ItemEntity ie2 ? ie2.getAge() : -1, e.getDeltaMovement(),
+							level.getBlockState(p).getBlock(), level.getBlockState(p.below()).getBlock(),
+							level.getBlockState(p.below(2)).getBlock(), level.getBlockState(p.below(3)).getBlock());
+				}
+				c.ledger.removed(new EntityLedger.Removal(id, outOfSight, near));
 			}
 		});
+	}
+
+	/**
+	 * An item the per-tick scan never saw: an idle hopper takes an item the server tick after it
+	 * spawns, so its spawn and removal reach the client in the same frame. If it is in the counter's
+	 * zone, record it now (before the removal or take is applied). Returns true when recorded.
+	 */
+	private static boolean lateSee(ClientLevel level, Counter c, Entity e) {
+		if (!(e instanceof ItemEntity ie) || !c.dimension.equals(Tickmark.dimension(level))) {
+			return false;
+		}
+		AABB zone = ZONES.get(c.id);
+		if (zone == null || !zone.inflate(MARGIN).contains(ie.position())) {
+			return false;
+		}
+		c.ledger.see(new EntityLedger.Seen(ie.getId(), id(ie), ie.getItem().getCount(), zone.contains(ie.position()),
+				nearCollector(level, ie), ie.getAge()));
+		return true;
 	}
 
 	// ---- per tick ----
@@ -153,6 +191,7 @@ public final class Live {
 			Set<Integer> seen = new HashSet<>();
 			for (ItemEntity ie : level.getEntitiesOfClass(ItemEntity.class, zone.inflate(MARGIN), Entity::isAlive)) {
 				seen.add(ie.getId());
+				debugSeen++;
 				ledger.see(new EntityLedger.Seen(ie.getId(), id(ie), ie.getItem().getCount(), zone.contains(ie.position()),
 						nearCollector(level, ie), ie.getAge()));
 			}
@@ -247,11 +286,26 @@ public final class Live {
 		return true;
 	}
 
-	/** On or right above a hopper or other container, or next to a hopper minecart. */
+	/** How far down an item's landing spot is looked for. */
+	private static final int LANDING_DEPTH = 6;
+
+	/**
+	 * In or over a hopper or other container: the first block with a collision shape straight below the
+	 * item (through air, up to {@value #LANDING_DEPTH} blocks) is a container, so a falling item lands
+	 * there. Where the item is right now is not enough: the client's copy can trail the server's by
+	 * several ticks (at a lowered {@code /tick rate} it may not have moved at all). Or next to a hopper
+	 * minecart.
+	 */
 	private static boolean nearCollector(ClientLevel level, ItemEntity ie) {
 		BlockPos p = ie.blockPosition();
-		if (level.getBlockEntity(p) instanceof Container || level.getBlockEntity(p.below()) instanceof Container) {
-			return true;
+		for (int k = 0; k <= LANDING_DEPTH; k++) {
+			BlockPos b = p.below(k);
+			if (level.getBlockEntity(b) instanceof Container) {
+				return true;
+			}
+			if (!level.getBlockState(b).getCollisionShape(level, b).isEmpty()) {
+				break; // lands on something that is not a container
+			}
 		}
 		return !level.getEntitiesOfClass(MinecartHopper.class, ie.getBoundingBox().inflate(1.0)).isEmpty();
 	}
