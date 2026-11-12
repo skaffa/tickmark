@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "tallymark",
+	"version": "${version}",
+	"name": "Tallymark",
+	"description": "Client-side farm rate meter: mark a farm's output chest, hopper line or collection area and see items per hour per item, with trend, lag correction and CSV export. Exact in singleplayer; estimates from item entities on servers. Sends no packets.",
+	"authors": [
+		"Skaffa",
+		"Claude (Anthropic)"
+	],
+	"contact": {
+		"homepage": "https://github.com/skaffa/tallymark",
+		"sources": "https://github.com/skaffa/tallymark",
+		"issues": "https://github.com/skaffa/tallymark/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/tallymark/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.tallymark.client.TallymarkClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
