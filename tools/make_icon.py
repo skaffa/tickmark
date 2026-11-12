@@ -1,31 +1,30 @@
 """Generates the Tickmark icon as 32x32 pixel art, in the Ghost Mason / Ortho / Gauge icon style.
 
 Style: dark rounded-square badge (#10161C) with 4-px stepped corners, soft radial glow, a block
-character with a cute face, cream 4-point sparkles. Subject: an output chest with a cute face under a
-cream tally of tick marks (four strokes and a slash): the name, and the count Tickmark keeps.
+character, cream 4-point sparkles. Subject: a stopwatch (the game-tick clock) with
+tick marks around its rim, whose two hands form a green tick mark: both meanings of the name.
 
 Usage: python tools/make_icon.py  -> media/icon.png (512), media/icon-128.png (128),
        and src/main/resources/assets/tickmark/icon.png (128)
 """
 import math
 import os
-import sys
 
 from PIL import Image
 
 N = 32
 BG = (16, 22, 28, 255)
-GLOW = (52, 40, 22)
-LID = (196, 132, 62, 255)
-LID_HI = (226, 168, 92, 255)
-BODY = (160, 100, 44, 255)
-BODY_DARK = (118, 72, 30, 255)
-BAND = (70, 44, 20, 255)
-LATCH = (222, 222, 230, 255)
-EYE = (40, 22, 8, 255)
-EYE_HI = (255, 240, 220, 255)
-MARK = (255, 236, 170, 255)
-MARK_SHADE = (190, 160, 100, 255)
+GLOW = (30, 52, 40)
+RIM = (150, 160, 172, 255)
+RIM_HI = (214, 222, 230, 255)
+RIM_DARK = (84, 92, 104, 255)
+FACE = (250, 242, 222, 255)
+FACE_SHADE = (226, 214, 188, 255)
+TICK = (70, 64, 58, 255)
+TICK_MAJOR = (40, 36, 32, 255)
+HAND = (70, 214, 96, 255)
+HAND_DARK = (36, 150, 62, 255)
+HUB = (30, 90, 44, 255)
 SPARK = (255, 236, 140)
 
 
@@ -61,44 +60,62 @@ def main(out_dir, res_dir):
         for x in range(N):
             if corner_cut(x, y):
                 continue
-            d = math.hypot(x + 0.5 - 16, y + 0.5 - 16) / 15
+            d = math.hypot(x + 0.5 - 16, y + 0.5 - 17) / 15
             t = max(0.0, 1 - d) ** 1.6
             px[y][x] = tuple(round(BG[i] + (GLOW[i] - BG[i]) * t) for i in range(3)) + (255,)
 
-    # chest: x 7..24, lid y 17..19, body y 20..27
-    for x in range(7, 25):
-        for y in range(17, 28):
-            if y <= 19:
-                c = LID_HI if y == 17 else LID
-            else:
-                c = BODY_DARK if x >= 20 else BODY
-            if x in (7, 24) or y == 27:
-                c = BAND
-            put(x, y, c)
-    for x in range(7, 25):
-        put(x, 20, BAND)
-    for y in range(19, 22):
-        put(15, y, LATCH)
-        put(16, y, LATCH)
-    # face on the body
-    for ex in (11, 20):
-        for dy in range(2):
-            put(ex, 23 + dy, EYE)
-        put(ex, 23, EYE_HI)
-    put(15, 25, EYE)
-    put(16, 25, EYE)
+    cx, cy = 16.0, 18.0
+    # crown of the stopwatch
+    for x in range(14, 18):
+        for y in range(3, 6):
+            put(x, y, RIM_HI if y == 3 else RIM)
+    for x in range(15, 17):
+        put(x, 6, RIM_DARK)
+    # case and face
+    for y in range(N):
+        for x in range(N):
+            fx, fy = x + 0.5 - cx, y + 0.5 - cy
+            d = math.hypot(fx, fy)
+            if d <= 11.6:
+                if d > 10.0:
+                    # rim: lit from the top left
+                    put(x, y, RIM_HI if fx + fy < -6 else RIM_DARK if fx + fy > 6 else RIM)
+                else:
+                    put(x, y, FACE_SHADE if fx + fy > 9 else FACE)
 
-    # tally mark: four strokes and a slash, above the chest
-    for i, x in enumerate((9, 13, 17, 21)):
-        for y in range(5, 14):
-            put(x, y, MARK)
-            put(x + 1, y, MARK_SHADE)
-    for i in range(20):
-        t = i / 19
-        x = round(6 + t * 19)
-        y = round(12 - t * 6)
-        put(x, y, MARK)
-        put(x, y + 1, MARK)
+    # tick marks around the rim: 12, the four quarters longer
+    for i in range(12):
+        a = math.radians(i * 30)
+        major = i % 3 == 0
+        r_in = 7.4 if major else 8.6
+        for k in range(3):
+            r = r_in + k * 0.8
+            if r > 9.6:
+                break
+            put(int(cx + math.sin(a) * r), int(cy - math.cos(a) * r), TICK_MAJOR if major else TICK)
+
+    # the hands form a tick mark: short stroke down from the left, long stroke up to the right
+    pivot = (14.5, 22.5)
+
+    def stroke(a, b, w):
+        steps = 40
+        for i in range(steps + 1):
+            t = i / steps
+            x = a[0] + (b[0] - a[0]) * t
+            y = a[1] + (b[1] - a[1]) * t
+            for dx in range(w):
+                for dy in range(w):
+                    put(int(x + dx - w / 2 + 0.5), int(y + dy - w / 2 + 0.5), HAND)
+
+    stroke((10.5, 18.5), pivot, 2)
+    stroke(pivot, (22.0, 11.0), 2)
+    # shade under the long stroke
+    for i in range(16):
+        t = i / 15
+        x = pivot[0] + (22.0 - pivot[0]) * t
+        y = pivot[1] + (11.0 - pivot[1]) * t
+        put(int(x + 1), int(y + 1), HAND_DARK)
+    put(int(pivot[0]), int(pivot[1]), HUB)
 
     def sparkle(x, y, strong=True):
         put(x, y, SPARK + (255,))
@@ -106,8 +123,8 @@ def main(out_dir, res_dir):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             put(x + dx, y + dy, SPARK + (a,))
 
-    sparkle(4, 25, strong=False)
-    sparkle(27, 9)
+    sparkle(4, 6, strong=False)
+    sparkle(27, 27)
 
     img = Image.new("RGBA", (N, N))
     img.putdata([c for row in px for c in row])

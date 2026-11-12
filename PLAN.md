@@ -8,12 +8,13 @@ Status: M2 done 2026-11-12 (exact mode, counters, HUD, labels, self-test `exact`
 ## 0. Name
 
 - **Tickmark** (id `tickmark`, package `dev.tickmark`, command `/tickmark` with short alias `/tm`,
-  files in `config/tickmark/`). Chosen 2026-11-12. "Tick marks" are the tally strokes in the icon, and
-  rates run on the game *tick* clock.
+  files in `config/tickmark/`). Chosen 2026-11-12. The name is the tick of the game clock the rates run
+  on and the tick of a check mark; the icon is a stopwatch whose hands form a green tick mark.
 - Earlier names: Tally (Modrinth slug taken by a survival advancement pack that may also use the mod
   id `tally` and a `/tally` command), then Tallymark (free, but the user wanted a better name).
 - Modrinth slug `tickmark` (no project titled Tickmark either) and GitHub `skaffa/tickmark` were free
-  on 2026-11-12. The project folder stays `C:\Users\henk\Documents\tally` as the prompt asked.
+  on 2026-11-12. The project folder is `C:\Users\henk\Documents\tickmark`
+  (renamed from `tally` on the user's request).
 
 ## 1. Facts checked in 26.3 code
 
