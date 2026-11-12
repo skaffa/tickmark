@@ -3,7 +3,7 @@
 Tickmark is a client-side Fabric mod for Minecraft 26.3 that measures farm output: items per hour, per item, at a
 marked output (container, container group or box area), with a trend and a trust level.
 
-Status: M1 done 2026-11-12 (skeleton, core maths, 34 unit tests). M2 next, waiting for the go.
+Status: M2 done 2026-11-12 (exact mode, counters, HUD, labels, self-test `exact` passes). M3 next, waiting for the go.
 
 ## 0. Name
 

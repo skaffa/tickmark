@@ -1,45 +1,70 @@
 package dev.tickmark.client;
 
-import dev.tickmark.core.config.ConfigStore;
-import dev.tickmark.core.config.TickmarkConfig;
+import com.mojang.blaze3d.platform.InputConstants;
+
+import dev.tickmark.client.dev.SelfTest;
 
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.file.Path;
-
-/** Client entrypoint. M1: loads the config; counters, HUD and commands come in M2. */
+/** Client entrypoint: keys, events, commands, HUD and the per-tick work. */
 public final class TickmarkClient implements ClientModInitializer {
-	public static final String MOD_ID = "tickmark";
-	public static final Logger LOG = LoggerFactory.getLogger("Tickmark");
-
-	private static ConfigStore store;
-	private static TickmarkConfig config = new TickmarkConfig();
+	private static KeyMapping markKey;
+	private static KeyMapping hudKey;
 
 	@Override
 	public void onInitializeClient() {
-		store = new ConfigStore(dir());
-		try {
-			config = store.load();
-			if (store.lastBackup() != null) {
-				LOG.warn("config.json could not be read; kept it as {} and used defaults", store.lastBackup());
-			}
-		} catch (IOException e) {
-			LOG.error("could not load config, using defaults", e);
+		Tickmark.loadConfig();
+		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Tickmark.MOD_ID, "main"));
+		markKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tickmark.mark", InputConstants.KEY_U, category));
+		hudKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tickmark.hud", InputConstants.KEY_I, category));
+
+		ClientTickEvents.END_CLIENT_TICK.register(TickmarkClient::tick);
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
+			ExactReader.clear();
+			Tickmark.joinWorld(mc);
+		});
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
+			Tickmark.leaveWorld();
+			ExactReader.clear();
+			Marking.boxMode = false;
+		});
+		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> Tickmark.save());
+		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, Identifier.fromNamespaceAndPath(Tickmark.MOD_ID, "panel"),
+				TickmarkHud::extract);
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> Commands.register(dispatcher));
+		SelfTest.init();
+		Tickmark.LOG.info("Tickmark loaded");
+	}
+
+	private static void tick(Minecraft mc) {
+		SelfTest.tick(mc);
+		if (mc.level == null || mc.player == null) {
+			return;
 		}
-		LOG.info("Tickmark loaded");
-	}
-
-	/** {@code config/tickmark/}: every file the mod writes goes here. */
-	public static Path dir() {
-		return FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
-	}
-
-	public static TickmarkConfig config() {
-		return config;
+		while (markKey.consumeClick()) {
+			Marking.key(mc, mc.player.isShiftKeyDown());
+		}
+		while (hudKey.consumeClick()) {
+			Tickmark.config.hudEnabled = !Tickmark.config.hudEnabled;
+			Tickmark.saveConfig();
+			Tickmark.say(Tickmark.config.hudEnabled ? "HUD on" : "HUD off");
+		}
+		ExactReader.tick(mc);
+		if (!Tickmark.exact(mc)) {
+			// multiplayer methods arrive in M3; until then counters are shown as not measured
+			Tickmark.counters.counters.forEach(c -> c.method = null);
+		}
+		WorldOverlay.tick(mc);
+		Tickmark.tickSave();
 	}
 }
