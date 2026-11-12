@@ -33,7 +33,7 @@ import java.util.Locale;
  * <ul>
  * <li>{@code exact}: {@code -Pselftest=exact --args="--quickPlaySingleplayer tmtest"}. Commands run on the
  * integrated server. Tolerance {@value #EXACT_TOLERANCE}.</li>
- * <li>{@code entity}: {@code -Pselftest=entity --args="--quickPlayMultiplayer 127.0.0.1:25565"} with
+ * <li>{@code entity}: {@code -Pselftest=entity --args="--quickPlayMultiplayer 127.0.0.1:25566"} with
  * {@code ./gradlew runServer} running (RCON on, command blocks on). Commands go over RCON. Checks the
  * entity estimate (tolerance {@value #ENTITY_TOLERANCE}), the snapshot taken by opening the chest twice,
  * and a {@code /tick rate 10} phase where the 20 TPS rate must hold while the real-time rate halves.</li>
@@ -49,6 +49,15 @@ public final class SelfTest {
 	/** Items to wait for before judging: enough that one item of phase error is under 1%. */
 	private static final long TARGET_ITEMS = 120;
 	private static final long SLOW_ITEMS = 60;
+	/** Gap test: items before leaving and after returning; game ticks to stay away after the gap shows. */
+	private static final long GAP_ITEMS = 40;
+	private static final int AWAY_TICKS = 600;
+	private static long before;
+	private static long freezeWall;
+	private static long freezeTicks;
+	/** Set when the server has run the rig commands. */
+	private static volatile boolean built;
+	private static int gapSeen = -1;
 	private static final int TIMEOUT_TICKS = 20 * 60 * 12;
 	private static final String ITEM = "minecraft:iron_ingot";
 	private static final String RCON_PASSWORD = "tickmarktest";
@@ -80,12 +89,14 @@ public final class SelfTest {
 			mc.gui.setScreen(null);
 		}
 		boolean entity = MODE.equals("entity");
-		if (!entity && !MODE.equals("exact")) {
-			finish(mc, "unknown self-test mode '" + MODE + "' (known: exact, entity)");
+		boolean gapMode = MODE.equals("gap");
+		boolean multiplayer = !mc.hasSingleplayerServer();
+		if (!entity && !gapMode && !MODE.equals("exact")) {
+			finish(mc, "unknown self-test mode '" + MODE + "' (known: exact, entity, gap)");
 			return;
 		}
-		if (entity == mc.hasSingleplayerServer()) {
-			finish(mc, entity ? "entity mode needs the test server (--quickPlayMultiplayer 127.0.0.1:25565)"
+		if (!gapMode && entity == mc.hasSingleplayerServer()) {
+			finish(mc, entity ? "entity mode needs the test server (--quickPlayMultiplayer 127.0.0.1:25566)"
 					: "exact mode needs a singleplayer world (--quickPlaySingleplayer tmtest)");
 			return;
 		}
@@ -95,14 +106,20 @@ public final class SelfTest {
 		}
 		switch (stage) {
 			case 0 -> {
-				if (ticks > 100) {
+				// gap mode: start somewhere fresh, far from spawn and from earlier runs' rigs
+				if (gapMode && ticks == 60) {
+					int fx = 20_000 + (int) (System.currentTimeMillis() / 1000 % 500) * 64;
+					run(mc, "tp " + mc.player.getGameProfile().name() + " " + fx + " " + mc.player.getBlockY() + " 8");
+				}
+				if (ticks > (gapMode ? 400 : 100)) {
 					build(mc);
 					next();
 				}
 			}
 			case 1 -> {
 				// wait for the chest to reach the client (a slow laptop can take seconds), then mark it like a player would
-				boolean arrived = mc.level.getBlockEntity(chest) instanceof net.minecraft.world.Container;
+				// only after the server says the rig is built: a chest left by an earlier run must not be marked
+				boolean arrived = built && mc.level.getBlockEntity(chest) instanceof net.minecraft.world.Container;
 				if (!arrived && inStage > 600) {
 					finish(mc, "rig chest not found at " + chest + " on the client");
 					return;
@@ -135,12 +152,19 @@ public final class SelfTest {
 			case 3 -> {
 				long n = counter.series.total().count(ITEM);
 				if (inStage % 400 == 0) {
+					serverChest(mc, "counting");
 					var t = counter.series.total();
 					Tickmark.LOG.info("[selftest] {} items in {} ticks (method {}, lost {}, unknown {}, gap {}; seen {}, removed {}/{} tracked, takes {})",
 							n, t.measuredTicks(), counter.method, t.lost(), t.unknown(), t.gapTicks(), dev.tickmark.client.Live.debugSeen,
 							dev.tickmark.client.Live.debugRemovedTracked, dev.tickmark.client.Live.debugRemoved, dev.tickmark.client.Live.debugTakes);
 				}
-				if (n >= TARGET_ITEMS) {
+				if (gapMode && n >= GAP_ITEMS) {
+					before = n;
+					Tickmark.LOG.info("[selftest] leaving: {} items, {} measured ticks, {} gap ticks, lastTick {}, game time {}", n,
+							counter.series.total().measuredTicks(), counter.series.total().gapTicks(), counter.lastTick, mc.level.getGameTime());
+					stage = 10;
+					stageStart = ticks;
+				} else if (!gapMode && n >= TARGET_ITEMS) {
 					next();
 				} else if (inStage > TIMEOUT_TICKS) {
 					finish(mc, "timeout: only " + n + " items counted");
@@ -185,14 +209,160 @@ public final class SelfTest {
 				if (n >= SLOW_ITEMS) {
 					checkSlow();
 					rcon("tick rate 20");
-					finish(mc, null);
+					next();
 				} else if (inStage > TIMEOUT_TICKS) {
 					rcon("tick rate 20");
 					finish(mc, "timeout at tick rate 10: only " + n + " items counted");
 				}
 			}
+			case 6 -> {
+				// /tick freeze: frozen time must not count as real time (it would read as heavy lag)
+				var t = counter.series.total();
+				if (inStage == 100) {
+					freezeWall = t.wallMillis();
+					freezeTicks = t.measuredTicks();
+					rcon("tick freeze");
+				}
+				if (inStage == 300) {
+					rcon("tick unfreeze");
+				}
+				if (inStage == 500) {
+					long dw = t.wallMillis() - freezeWall;
+					long dt = t.measuredTicks() - freezeTicks;
+					double msPerTick = dt <= 0 ? Double.NaN : (double) dw / dt;
+					Tickmark.LOG.info(String.format(Locale.ROOT, "[selftest] freeze: %d ticks took %d ms of counted real time (%.1f ms per tick; frozen for 200 client ticks)",
+							dt, dw, msPerTick));
+					// 10 s frozen spread over ~200 ticks would add ~50 ms per tick; normal is ~50 ms per tick
+					if (!(msPerTick < 80)) {
+						FAILURES.add(String.format(Locale.ROOT, "frozen time counted as real time: %.1f ms per game tick", msPerTick));
+					}
+					finish(mc, null);
+				}
+			}
+			case 10 -> {
+				// leave: far enough that the rig's chunks unload (no spawn chunks in 26.3)
+				if (inStage == 1) {
+					run(mc, "tp " + mc.player.getGameProfile().name() + " " + (chest.getX() + 3000) + " " + (chest.getY() + 1) + " " + chest.getZ());
+				}
+				if (inStage % 200 == 0) {
+					long n = counter.series.total().count(ITEM);
+					IntegratedServer srv = mc.getSingleplayerServer();
+					if (srv != null) {
+						BlockPos c = chest;
+						boolean gap = counter.inGap;
+						srv.execute(() -> {
+							var lvl = srv.overworld();
+							Tickmark.LOG.info("[selftest] away {} ticks: {} items, inGap {}; server: chunk loaded {}, block ticking {}, entity ticking {}, forced {}",
+									inStage, n, gap, lvl.getChunkSource().getChunkNow(c.getX() >> 4, c.getZ() >> 4) != null,
+									lvl.shouldTickBlocksAt(net.minecraft.world.level.ChunkPos.pack(c)), lvl.isPositionEntityTicking(c),
+									lvl.getForceLoadedChunks().size());
+						});
+					} else {
+						Tickmark.LOG.info("[selftest] away {} ticks: {} items, inGap {}", inStage, n, counter.inGap);
+					}
+				}
+				if (counter.inGap && gapSeen < 0) {
+					gapSeen = ticks;
+					Tickmark.LOG.info("[selftest] gap: counter reports a gap {} ticks after leaving", inStage);
+				}
+				if (gapSeen < 0 && inStage > 2400) {
+					finish(mc, "no gap reported in 2400 ticks after leaving the farm");
+					return;
+				}
+				if (gapSeen >= 0 && ticks - gapSeen >= AWAY_TICKS) {
+					Tickmark.LOG.info("[selftest] returning: {} items, {} measured ticks, {} gap ticks, lastTick {}, game time {}",
+							counter.series.total().count(ITEM), counter.series.total().measuredTicks(), counter.series.total().gapTicks(),
+							counter.lastTick, mc.level.getGameTime());
+					shot(mc, "gap-away-hud");
+					run(mc, "tp " + mc.player.getGameProfile().name() + " " + (chest.getX() - 3.5) + " " + (chest.getY() + 1) + " " + (chest.getZ() + 0.5) + " -90 20");
+					next();
+				}
+			}
+			case 11 -> {
+				long n = counter.series.total().count(ITEM);
+				if (inStage % 400 == 0) {
+					IntegratedServer srv = mc.getSingleplayerServer();
+					long lastTick = counter.lastTick;
+					boolean gap = counter.inGap;
+					var method = counter.method;
+					if (srv != null) {
+						BlockPos c = chest;
+						srv.execute(() -> {
+							var lvl = srv.overworld();
+							long inChest = lvl.getBlockEntity(c) instanceof net.minecraft.world.Container ct
+									? java.util.stream.IntStream.range(0, ct.getContainerSize()).mapToLong(i -> ct.getItem(i).getCount()).sum() : -1;
+							int loose = lvl.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+									new net.minecraft.world.phys.AABB(c).inflate(1, 4, 1)).size();
+							Tickmark.LOG.info("[selftest] back {} ticks: counted {} (method {}, inGap {}, lastTick {}, game time {}); server chest {} items, {} loose item entities, hopper {}",
+									inStage, n, method, gap, lastTick, lvl.getGameTime(), inChest, loose, lvl.getBlockState(c.above()));
+						});
+					} else {
+						Tickmark.LOG.info("[selftest] back {} ticks: counted {}, inGap {}", inStage, n, gap);
+					}
+				}
+				if (inStage % 100 == 0) {
+					Tickmark.LOG.info("[selftest] back {}: {} items, {} measured, {} gap, lastTick {}, inGap {}", inStage, n,
+							counter.series.total().measuredTicks(), counter.series.total().gapTicks(), counter.lastTick, counter.inGap);
+				}
+				if (!counter.inGap && n >= before + GAP_ITEMS) {
+					shot(mc, "gap-back-hud");
+					checkGap(multiplayer);
+					finish(mc, null);
+				} else if (inStage > TIMEOUT_TICKS) {
+					finish(mc, "after returning only " + (n - before) + " more items counted (in gap: " + counter.inGap + ")");
+				}
+			}
 			default -> {
 			}
+		}
+	}
+
+	/** Singleplayer: logs what the server has at the rig, to compare with what Tickmark counted. */
+	private static void serverChest(Minecraft mc, String label) {
+		IntegratedServer srv = mc.getSingleplayerServer();
+		if (srv == null || chest == null) {
+			return;
+		}
+		BlockPos c = chest;
+		srv.execute(() -> {
+			var lvl = srv.overworld();
+			long inChest = lvl.getBlockEntity(c) instanceof net.minecraft.world.Container ct
+					? java.util.stream.IntStream.range(0, ct.getContainerSize()).mapToLong(i -> ct.getItem(i).getCount()).sum() : -1;
+			long inHopper = lvl.getBlockEntity(c.above()) instanceof net.minecraft.world.Container ct
+					? java.util.stream.IntStream.range(0, ct.getContainerSize()).mapToLong(i -> ct.getItem(i).getCount()).sum() : -1;
+			Tickmark.LOG.info("[selftest] server {}: chest {} items, hopper {} items, chest block {}, hopper block {}", label, inChest, inHopper,
+					lvl.getBlockState(c), lvl.getBlockState(c.above()));
+		});
+	}
+
+	/** Runs a command on the integrated server (singleplayer) or over RCON (test server). */
+	private static void run(Minecraft mc, String cmd) {
+		IntegratedServer server = mc.getSingleplayerServer();
+		if (server == null) {
+			rcon(cmd);
+			return;
+		}
+		server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), cmd));
+	}
+
+	private static void checkGap(boolean multiplayer) {
+		Series.Window total = counter.series.total();
+		double rate = total.rate(ITEM, RateUnit.PER_HOUR);
+		double err = Math.abs(rate - KNOWN_PER_HOUR) / KNOWN_PER_HOUR;
+		double tol = multiplayer ? ENTITY_TOLERANCE : EXACT_TOLERANCE;
+		Tickmark.LOG.info(String.format(Locale.ROOT,
+				"[selftest] gap: %d items in %d measured ticks = %.1f/h (error %.2f%%, tolerance %.0f%%); %d gap ticks; lost %d, unknown %d",
+				total.count(ITEM), total.measuredTicks(), rate, err * 100, tol * 100, total.gapTicks(), total.lost(), total.unknown()));
+		if (!(err <= tol)) {
+			FAILURES.add(String.format(Locale.ROOT, "with a gap the rate %.1f/h is not within %.0f%% of %.1f/h", rate, tol * 100, KNOWN_PER_HOUR));
+		}
+		if (total.gapTicks() < AWAY_TICKS / 2) {
+			FAILURES.add("only " + total.gapTicks() + " gap ticks recorded for at least " + AWAY_TICKS + " ticks away");
+		}
+		// the minute buckets of the away time must show as sparkline gaps, not as zero output
+		long gapMinutes = counter.series.buckets().stream().filter(b -> b.measuredTicks < Series.BUCKET_TICKS / 2).count();
+		if (gapMinutes == 0) {
+			FAILURES.add("no minute is marked as a gap in the history");
 		}
 	}
 
@@ -220,6 +390,9 @@ public final class SelfTest {
 		int z = base.getZ();
 		chest = new BlockPos(x, y, z);
 		String item = "{Item:{id:\"" + ITEM + "\",count:1},Motion:[0.0d,0.0d,0.0d]}";
+		// a score holder of its own: rigs of earlier runs (one sits in a force-loaded chunk of the test
+		// world) keep running and would advance a shared score, doubling this clock
+		String t = "#t" + Long.toString(System.currentTimeMillis() % 1_000_000, 36);
 		String name = mc.player.getGameProfile().name();
 		// entity mode: drop from higher up so items fall for a few ticks and the per-tick scan sees them
 		// (from 2.2 an idle hopper takes them the next tick: that path, seen only at removal, passed on 2026-11-12)
@@ -229,14 +402,13 @@ public final class SelfTest {
 				"fill " + (x - 1) + " " + (y - 1) + " " + (z - 2) + " " + (x + 6) + " " + (y - 1) + " " + (z + 2) + " stone",
 				"setblock " + x + " " + y + " " + z + " chest",
 				"setblock " + x + " " + (y + 1) + " " + z + " hopper[facing=down]",
-				"scoreboard objectives remove tm_clock",
 				"scoreboard objectives add tm_clock dummy",
-				"scoreboard players set #t tm_clock 0",
-				"setblock " + (x + 3) + " " + y + " " + z + " repeating_command_block[facing=east]{auto:1b,Command:\"scoreboard players add #t tm_clock 1\"}",
-				"setblock " + (x + 4) + " " + y + " " + z + " chain_command_block[facing=east]{auto:1b,Command:\"execute if score #t tm_clock matches "
+				"scoreboard players set " + t + " tm_clock 0",
+				"setblock " + (x + 3) + " " + y + " " + z + " repeating_command_block[facing=east]{auto:1b,Command:\"scoreboard players add " + t + " tm_clock 1\"}",
+				"setblock " + (x + 4) + " " + y + " " + z + " chain_command_block[facing=east]{auto:1b,Command:\"execute if score " + t + " tm_clock matches "
 						+ PERIOD + ".. run summon item " + (x + 0.5) + " " + dropY + " " + (z + 0.5) + " " + item.replace("\"", "\\\"") + "\"}",
-				"setblock " + (x + 5) + " " + y + " " + z + " chain_command_block[facing=east]{auto:1b,Command:\"execute if score #t tm_clock matches "
-						+ PERIOD + ".. run scoreboard players set #t tm_clock 0\"}",
+				"setblock " + (x + 5) + " " + y + " " + z + " chain_command_block[facing=east]{auto:1b,Command:\"execute if score " + t + " tm_clock matches "
+						+ PERIOD + ".. run scoreboard players set " + t + " tm_clock 0\"}",
 				"difficulty peaceful",
 				"time set noon",
 				"tick rate 20",
@@ -249,17 +421,19 @@ public final class SelfTest {
 					Tickmark.LOG.info("[selftest] /{}", c);
 					server.getCommands().performPrefixedCommand(src, c);
 				}
+				built = true;
 			});
 		} else {
 			for (String c : cmds) {
 				rcon(c);
 			}
+			built = true;
 		}
 		Tickmark.LOG.info("[selftest] rig at {} (period {} ticks, known rate {}/h)", chest, PERIOD, KNOWN_PER_HOUR);
 	}
 
 	private static void rcon(String cmd) {
-		try (Rcon r = new Rcon("127.0.0.1", 25575, RCON_PASSWORD)) {
+		try (Rcon r = new Rcon("127.0.0.1", 25576, RCON_PASSWORD)) {
 			String reply = r.command(cmd);
 			Tickmark.LOG.info("[selftest] rcon /{} -> {}", cmd, reply.isBlank() ? "ok" : reply.strip());
 		} catch (IOException e) {

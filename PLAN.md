@@ -3,7 +3,7 @@
 Tickmark is a client-side Fabric mod for Minecraft 26.3 that measures farm output: items per hour, per item, at a
 marked output (container, container group or box area), with a trend and a trust level.
 
-Status: M3 done 2026-11-12 (entity, inventory and snapshot methods; self-tests `exact` and `entity` pass). M4 next, waiting for the go.
+Status: M4 done 2026-11-12 (gaps, lag and /tick freeze; self-tests `exact`, `entity` and `gap` pass). M5 next, waiting for the go.
 
 ## 0. Name
 
@@ -46,6 +46,17 @@ Found in the M3 tests on the test server (2026-11-12):
   "collected" asks where the item lands: the first block with a collision shape straight below it
   (through air, up to 6 blocks) is a hopper or container. Checked at every scan and again at removal.
   Before this, 85% (and later 7%) of falling items were "unknown"; after it, 0 in the self-test.
+
+Found in the M4 tests (2026-11-12):
+- A frozen server (`/tick freeze`) still sends the time packet every 20 of its ticks, with the same
+  game time. Those packets now move the real clock on without closing a sample, so frozen time is
+  not counted as lag (self-test: 220 ticks took 12.0 s of counted real time with a 10 s freeze).
+- In singleplayer the rig's chunk unloads about 20-200 ticks after the player leaves; exact mode
+  then reads nothing and records a gap. Items produced before the unload are counted on return.
+- Test setup traps: the `tmtest` world has a force-loaded chunk holding an older rig whose clock
+  never stops (a rig there never gets a gap, which is correct); rigs therefore use their own
+  scoreboard holder. Another mod's test server uses ports 25565/25575, so Tickmark's uses
+  25566 (game) and 25576 (RCON).
 
 Checked in M1 (2026-11-12):
 - Item entities: `EntityTypes.ITEM` uses `clientTrackingRange(6)` (6 chunks = 96 blocks, further

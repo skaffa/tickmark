@@ -83,11 +83,11 @@ public final class Live {
 	public static void onTime(long gameTime) {
 		long nanos = System.nanoTime();
 		TPS.add(gameTime, nanos);
-		if (gameTime > serverTime || serverTime == Long.MIN_VALUE) {
-			serverTime = gameTime;
-			serverNanos = nanos;
-			timeArrived = true;
-		}
+		// a frozen server (/tick freeze) still sends the time every 20 of its ticks, with the same game
+		// time: those packets close no sample but move the real clock on, so frozen time is not lag
+		serverTime = Math.max(serverTime, gameTime);
+		serverNanos = nanos;
+		timeArrived = true;
 	}
 
 	public static void onTake(int itemId, int collectorId, int amount) {
@@ -226,6 +226,7 @@ public final class Live {
 				continue;
 			}
 			if (serverTime <= c.lastTick) {
+				c.lastNanos = serverNanos;
 				continue;
 			}
 			EntityLedger.Events ev = c.ledger().take();

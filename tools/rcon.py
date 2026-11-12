@@ -9,7 +9,7 @@ import struct
 import sys
 import time
 
-HOST, PORT = "127.0.0.1", 25575
+HOST, PORT = "127.0.0.1", 25576
 
 
 def packet(req_id, kind, payload):

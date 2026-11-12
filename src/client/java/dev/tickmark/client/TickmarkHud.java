@@ -253,10 +253,19 @@ final class TickmarkHud {
 		if (c.full) {
 			notes.add("Full: the rate is capped");
 		}
+		boolean frozen = mc.level.tickRateManager().isFrozen();
+		if (frozen) {
+			notes.add("Game frozen (/tick freeze): no time counted");
+		}
 		double tps = w.tps();
 		if (!Double.isNaN(tps) && tps < 20 * (1 - cfg.lagNoteThreshold) && w.measuredTicks() > 600) {
 			notes.add(String.format(java.util.Locale.ROOT, "Server ran at %.1f TPS: real output %d%% lower", tps,
 					Math.round((1 - tps / 20) * 100)));
+		}
+		// in multiplayer the time packets give the server's speed right now
+		double tpsNow = Live.TPS.tps();
+		if (!frozen && !Tickmark.exact(mc) && !Double.isNaN(tpsNow) && tpsNow < 20 * (1 - cfg.lagNoteThreshold)) {
+			notes.add(String.format(java.util.Locale.ROOT, "Server now at %.1f TPS", tpsNow));
 		}
 		if (Trend.of(w.buckets(), ids.isEmpty() ? "" : ids.getFirst()).variation() > 1.0) {
 			notes.add("Bursty farm: the 60 m window is more reliable");
