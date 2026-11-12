@@ -51,7 +51,7 @@ public final class SelfTest {
 	private static final long SLOW_ITEMS = 60;
 	/** Gap test: items before leaving and after returning; game ticks to stay away after the gap shows. */
 	private static final long GAP_ITEMS = 40;
-	private static final long SHOT_ITEMS = 60;
+	private static final long SHOT_ITEMS = 300; // about 5 game minutes: enough for a sparkline and a trend
 	private static final int AWAY_TICKS = 600;
 	private static long before;
 	private static long freezeWall;
@@ -169,7 +169,7 @@ public final class SelfTest {
 				} else if (shotsMode && n >= SHOT_ITEMS) {
 					stage = 20;
 					stageStart = ticks;
-				} else if (!gapMode && n >= TARGET_ITEMS) {
+				} else if (!gapMode && !shotsMode && n >= TARGET_ITEMS) {
 					next();
 				} else if (inStage > TIMEOUT_TICKS) {
 					finish(mc, "timeout: only " + n + " items counted");
