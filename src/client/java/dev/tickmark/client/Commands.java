@@ -9,6 +9,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import dev.tickmark.core.Counter;
 import dev.tickmark.core.CsvExport;
+import dev.tickmark.core.EntityLedger;
 import dev.tickmark.core.Format;
 import dev.tickmark.core.Pos;
 
@@ -49,6 +50,7 @@ final class Commands {
 				.then(literal("mark")
 						.executes(c -> mark(c, false))
 						.then(literal("new").executes(c -> mark(c, true)))
+						.then(literal("self").executes(c -> Marking.markSelf(Minecraft.getInstance()).isPresent() ? 1 : 0))
 						.then(literal("box")
 								.executes(c -> {
 									Marking.startBox();
@@ -72,6 +74,10 @@ final class Commands {
 				.then(literal("resume")
 						.then(literal("all").executes(c -> each(c, true, Commands::resume, "resumed")))
 						.then(argument("id", IntegerArgumentType.integer(1)).executes(c -> each(c, false, Commands::resume, "resumed"))))
+				.then(literal("rule").then(argument("id", IntegerArgumentType.integer(1))
+						.then(literal("collected").executes(c -> each(c, false, k -> k.rule = EntityLedger.Rule.COLLECTED, "set to count items collected by hoppers:")))
+						.then(literal("arrived").executes(c -> each(c, false, k -> k.rule = EntityLedger.Rule.ARRIVED, "set to count items arriving in the area:")))
+						.then(literal("auto").executes(c -> each(c, false, k -> k.rule = null, "set to choose the rule automatically:")))))
 				.then(literal("remove").then(argument("id", IntegerArgumentType.integer(1)).executes(Commands::remove)))
 				.then(literal("export")
 						.then(literal("all").executes(c -> export(c, true)))
@@ -90,10 +96,13 @@ final class Commands {
 				"/tickmark mark - mark the container you look at (or the mark key, U). Adjacent containers join the last counter;",
 				"/tickmark mark new - always start a new counter (or Shift + mark key)",
 				"/tickmark mark box [x1 y1 z1 x2 y2 z2] - mark an area (without numbers: mark key on two corners)",
+				"/tickmark mark self - count what you pick up (AFK farms where you collect)",
+				"/tickmark rule <id> collected|arrived|auto - multiplayer: count items hoppers collect, or items entering the area",
 				"/tickmark list | name <id> <name> | reset <id|all> | pause <id|all> | resume <id|all> | remove <id>",
 				"/tickmark export <id|all> - CSV in config/tickmark/exports/",
 				"/tickmark hud - show or hide the panel (or the I key). /tm is short for /tickmark.",
-				"Exact in singleplayer and on a LAN host. Multiplayer counting comes in a later version."};
+				"Exact in singleplayer and on a LAN host. On servers: estimated from item entities (ENTITY ~);",
+				"open a marked container now and then for an exact check between visits."};
 		for (String l : lines) {
 			c.getSource().sendFeedback(Component.literal(l));
 		}

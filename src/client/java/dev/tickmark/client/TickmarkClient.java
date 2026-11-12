@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -29,13 +30,16 @@ public final class TickmarkClient implements ClientModInitializer {
 		hudKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tickmark.hud", InputConstants.KEY_I, category));
 
 		ClientTickEvents.END_CLIENT_TICK.register(TickmarkClient::tick);
+		UseBlockCallback.EVENT.register(SnapshotTracker::onUse);
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> {
 			ExactReader.clear();
+			Live.clear();
 			Tickmark.joinWorld(mc);
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
 			Tickmark.leaveWorld();
 			ExactReader.clear();
+			Live.clear();
 			Marking.boxMode = false;
 		});
 		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> Tickmark.save());
@@ -60,10 +64,8 @@ public final class TickmarkClient implements ClientModInitializer {
 			Tickmark.say(Tickmark.config.hudEnabled ? "HUD on" : "HUD off");
 		}
 		ExactReader.tick(mc);
-		if (!Tickmark.exact(mc)) {
-			// multiplayer methods arrive in M3; until then counters are shown as not measured
-			Tickmark.counters.counters.forEach(c -> c.method = null);
-		}
+		Live.tick(mc);
+		SnapshotTracker.tick(mc);
 		WorldOverlay.tick(mc);
 		Tickmark.tickSave();
 	}

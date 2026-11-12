@@ -114,6 +114,24 @@ public final class Marking {
 	}
 
 	private static String modeNote(Minecraft mc) {
-		return Tickmark.exact(mc) ? " (exact)" : " (multiplayer counting comes in a later version)";
+		return Tickmark.exact(mc) ? " (exact)" : " (estimated from item entities; open it now and then for an exact check)";
+	}
+
+	/** Counts what the player picks up, in this dimension: for AFK farms where the player collects. */
+	static Optional<Counter> markSelf(Minecraft mc) {
+		String dim = Tickmark.dimension(mc.level);
+		for (Counter c : Tickmark.counters.inDimension(dim)) {
+			if (c.kind == Counter.Kind.SELF) {
+				Tickmark.say("counter " + c.label() + " already counts your pickups here");
+				return Optional.empty();
+			}
+		}
+		Counter c = new Counter();
+		c.dimension = dim;
+		c.kind = Counter.Kind.SELF;
+		Tickmark.counters.add(c);
+		Tickmark.changed();
+		Tickmark.say("counter " + c.label() + ": items you pick up in this dimension");
+		return Optional.of(c);
 	}
 }

@@ -47,6 +47,9 @@ public final class CounterStore {
 				if (c.positions == null) {
 					c.positions = new java.util.ArrayList<>();
 				}
+				if (c.snapshots == null) {
+					c.snapshots = new java.util.LinkedHashMap<>();
+				}
 				if (c.filter == null) {
 					c.filter = new java.util.ArrayList<>();
 				}

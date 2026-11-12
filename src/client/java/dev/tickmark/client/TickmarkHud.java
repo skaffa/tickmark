@@ -214,18 +214,40 @@ final class TickmarkHud {
 		}
 
 		List<String> notes = new ArrayList<>();
-		if (c.method == null && !c.paused) {
-			notes.add("Multiplayer counting comes in a later version");
-		} else if (rows.isEmpty()) {
-			notes.add(c.lastTick == Long.MIN_VALUE ? "Starting..." : "No items yet");
+		if (rows.isEmpty() && !c.paused) {
+			notes.add(c.lastTick == Long.MIN_VALUE ? "Starting..." : c.kind == Counter.Kind.SELF ? "Nothing picked up yet" : "No items yet");
 		}
 		String measured = "measured " + Format.duration(total.measuredTicks()) + " · " + cfg.windowMinutes + " m window";
 		if (total.gapTicks() > 0) {
-			measured += " · " + Format.duration(total.gapTicks()) + " not loaded";
+			measured += " · " + Format.duration(total.gapTicks()) + (c.method == Method.EXACT ? " not loaded" : " not seen");
 		}
 		notes.add(measured);
 		if (c.inGap) {
-			notes.add("Chunks not ticking now: not counted");
+			notes.add(c.method == Method.EXACT ? "Chunks not ticking now: not counted"
+					: c.method == Method.INVENTORY ? "Other dimension: not counted" : "Out of sight or not ticking now: not counted");
+		}
+		if (c.method == Method.ENTITY) {
+			if (c.ledger != null && c.ledger.rule() == dev.tickmark.core.EntityLedger.Rule.ARRIVED) {
+				notes.add("No hopper in the area: counting items that arrive");
+			}
+			if (w.lost() > 0 || w.unknown() > 0) {
+				notes.add(Format.count(w.lost()) + " lost (picked up, despawned) · " + Format.count(w.unknown()) + " unknown");
+			}
+			String top = ids.isEmpty() ? null : ids.getFirst();
+			for (var e : c.snapshots.entrySet()) {
+				if (e.getValue().measured() && top == null) {
+					top = e.getValue().gain.keySet().stream().findFirst().orElse(null);
+				}
+			}
+			double snap = top == null ? Double.NaN : c.snapshotRate(top, unit);
+			if (!Double.isNaN(snap)) {
+				long span = c.snapshots.values().stream().filter(dev.tickmark.core.SnapshotLog::measured)
+						.mapToLong(l -> l.gainTicks).max().orElse(0);
+				notes.add("Opened: " + Format.rate(snap) + unit.suffix() + " " + Format.shortId(top) + " over " + Format.duration(span)
+						+ " (exact)");
+			} else if (c.kind != Counter.Kind.BOX) {
+				notes.add("Open it, close it, open it later: exact check");
+			}
 		}
 		if (c.full) {
 			notes.add("Full: the rate is capped");

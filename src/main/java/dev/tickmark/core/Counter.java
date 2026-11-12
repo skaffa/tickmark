@@ -28,6 +28,13 @@ public final class Counter {
 	/** When not empty, only these item ids are counted. */
 	public List<String> filter = new ArrayList<>();
 	public Series series = new Series();
+	/** Multiplayer snapshot method: one log per container block, keyed by {@link Pos#toString()}. */
+	public java.util.Map<String, SnapshotLog> snapshots = new java.util.LinkedHashMap<>();
+	/** Entity method rule; null means automatic (collected when the zone has a hopper or container). */
+	public EntityLedger.Rule rule;
+
+	/** Entity counting state; rebuilt each session. */
+	public transient EntityLedger ledger;
 
 	/** Diffs successive readings; rebuilt each session. */
 	public transient GainTracker tracker;
@@ -44,6 +51,26 @@ public final class Counter {
 	public transient boolean quietRestart;
 
 	public Counter() {
+	}
+
+	public EntityLedger ledger() {
+		if (ledger == null) {
+			ledger = new EntityLedger();
+		}
+		return ledger;
+	}
+
+	/** Sum of the per-container snapshot rates for one item; NaN when no container was measured. */
+	public double snapshotRate(String item, RateUnit unit) {
+		double sum = 0;
+		boolean any = false;
+		for (SnapshotLog l : snapshots.values()) {
+			if (l.measured()) {
+				sum += l.rate(item, unit);
+				any = true;
+			}
+		}
+		return any ? sum : Double.NaN;
 	}
 
 	public GainTracker tracker() {
@@ -64,6 +91,9 @@ public final class Counter {
 	 */
 	public void restart(boolean quiet) {
 		quietRestart = quiet;
+		if (ledger != null) {
+			ledger.clear();
+		}
 		tracker = null;
 		lastTick = Long.MIN_VALUE;
 		lastNanos = 0;
