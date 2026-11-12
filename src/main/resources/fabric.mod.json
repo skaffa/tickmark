@@ -19,6 +19,9 @@
 	"entrypoints": {
 		"client": [
 			"dev.tickmark.client.TickmarkClient"
+		],
+		"modmenu": [
+			"dev.tickmark.client.ModMenuIntegration"
 		]
 	},
 	"mixins": [

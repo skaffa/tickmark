@@ -31,7 +31,7 @@ final class TickmarkHud {
 	static final int GREY = 0xFF9A9A9A;
 	private static final int TEXT = 0xFFE6E6E6;
 	private static final int DIM = 0xFFA8A8A8;
-	private static final int BG = 0xB0101418;
+	private static final int BG = 0xE0101418;
 	private static final int ROW = 11;
 	private static final int PAD = 4;
 	private static final int SPARK_W = 2;
@@ -55,6 +55,12 @@ final class TickmarkHud {
 	static List<Counter> shown(Minecraft mc) {
 		String dim = Tickmark.dimension(mc.level);
 		List<Counter> near = Tickmark.counters.nearest(dim, mc.player.getX(), mc.player.getY(), mc.player.getZ());
+		if (Tickmark.config.hudCounters == TickmarkConfig.HudCounters.PINNED) {
+			List<Counter> pinned = near.stream().filter(c -> c.pinned).toList();
+			if (!pinned.isEmpty()) {
+				return pinned.subList(0, Math.min(4, pinned.size()));
+			}
+		}
 		int max = Tickmark.config.hudCounters == TickmarkConfig.HudCounters.ALL ? 4 : 1;
 		return near.subList(0, Math.min(max, near.size()));
 	}

@@ -15,6 +15,9 @@ import dev.tickmark.core.Pos;
 
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.arguments.item.ItemArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
@@ -32,21 +35,45 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /** {@code /tickmark} and its short alias {@code /tm}. */
-final class Commands {
+public final class Commands {
 	private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
 	private Commands() {
 	}
 
-	static void register(CommandDispatcher<FabricClientCommandSource> d) {
-		LiteralCommandNode<FabricClientCommandSource> root = d.register(build("tickmark"));
+	/** Set by {@code /tickmark config}; the screen opens on the next tick (chat closes first). */
+	static boolean openConfig;
+
+	static void register(CommandDispatcher<FabricClientCommandSource> d, CommandBuildContext context) {
+		LiteralCommandNode<FabricClientCommandSource> root = d.register(build("tickmark", context));
 		d.register(literal("tm").executes(Commands::help).redirect(root));
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> build(String name) {
+	private static LiteralArgumentBuilder<FabricClientCommandSource> build(String name, CommandBuildContext context) {
 		return literal(name)
 				.executes(Commands::help)
 				.then(literal("help").executes(Commands::help))
+				.then(literal("config").executes(c -> {
+					openConfig = true;
+					return 1;
+				}))
+				.then(literal("pin").then(argument("id", IntegerArgumentType.integer(1))
+						.executes(c -> each(c, false, k -> k.pinned = !k.pinned, "pinned/unpinned"))))
+				.then(literal("filter").then(argument("id", IntegerArgumentType.integer(1))
+						.then(literal("clear").executes(c -> each(c, false, k -> {
+							k.filter.clear();
+							k.restart(true);
+						}, "now counts every item:")))
+						.then(argument("item", ItemArgument.item(context)).executes(c -> {
+							String item = BuiltInRegistries.ITEM.getKey(ItemArgument.getItem(c, "item").item().value()).toString();
+							return each(c, false, k -> {
+								if (!k.filter.remove(item)) {
+									k.filter.add(item);
+								}
+								// the counted set changed: new baseline, so items already there are not output
+								k.restart(true);
+							}, "filter " + Format.shortId(item) + " toggled for");
+						}))))
 				.then(literal("mark")
 						.executes(c -> mark(c, false))
 						.then(literal("new").executes(c -> mark(c, true)))
@@ -99,6 +126,8 @@ final class Commands {
 				"/tickmark mark self - count what you pick up (AFK farms where you collect)",
 				"/tickmark rule <id> collected|arrived|auto - multiplayer: count items hoppers collect, or items entering the area",
 				"/tickmark list | name <id> <name> | reset <id|all> | pause <id|all> | resume <id|all> | remove <id>",
+				"/tickmark filter <id> <item>|clear - count only chosen items; /tickmark pin <id> - keep it in the HUD",
+				"/tickmark config - settings (also in Mod Menu)",
 				"/tickmark export <id|all> - CSV in config/tickmark/exports/",
 				"/tickmark hud - show or hide the panel (or the I key). /tm is short for /tickmark.",
 				"Exact in singleplayer and on a LAN host. On servers: estimated from item entities (ENTITY ~);",
@@ -205,7 +234,7 @@ final class Commands {
 		return 1;
 	}
 
-	static Path export(Counter k) throws IOException {
+	public static Path export(Counter k) throws IOException {
 		Path dir = Tickmark.dir().resolve("exports");
 		Files.createDirectories(dir);
 		String world = Tickmark.worldKey() == null ? "world" : Tickmark.worldKey();

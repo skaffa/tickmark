@@ -45,13 +45,17 @@ public final class TickmarkClient implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> Tickmark.save());
 		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, Identifier.fromNamespaceAndPath(Tickmark.MOD_ID, "panel"),
 				TickmarkHud::extract);
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> Commands.register(dispatcher));
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> Commands.register(dispatcher, context));
 		SelfTest.init();
 		Tickmark.LOG.info("Tickmark loaded");
 	}
 
 	private static void tick(Minecraft mc) {
 		SelfTest.tick(mc);
+		if (Commands.openConfig) {
+			Commands.openConfig = false;
+			mc.gui.setScreen(new ConfigScreen(null));
+		}
 		if (mc.level == null || mc.player == null) {
 			return;
 		}

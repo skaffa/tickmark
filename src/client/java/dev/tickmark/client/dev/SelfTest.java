@@ -51,6 +51,7 @@ public final class SelfTest {
 	private static final long SLOW_ITEMS = 60;
 	/** Gap test: items before leaving and after returning; game ticks to stay away after the gap shows. */
 	private static final long GAP_ITEMS = 40;
+	private static final long SHOT_ITEMS = 60;
 	private static final int AWAY_TICKS = 600;
 	private static long before;
 	private static long freezeWall;
@@ -90,9 +91,10 @@ public final class SelfTest {
 		}
 		boolean entity = MODE.equals("entity");
 		boolean gapMode = MODE.equals("gap");
+		boolean shotsMode = MODE.equals("shots");
 		boolean multiplayer = !mc.hasSingleplayerServer();
-		if (!entity && !gapMode && !MODE.equals("exact")) {
-			finish(mc, "unknown self-test mode '" + MODE + "' (known: exact, entity, gap)");
+		if (!entity && !gapMode && !shotsMode && !MODE.equals("exact")) {
+			finish(mc, "unknown self-test mode '" + MODE + "' (known: exact, entity, gap, shots)");
 			return;
 		}
 		if (!gapMode && entity == mc.hasSingleplayerServer()) {
@@ -163,6 +165,9 @@ public final class SelfTest {
 					Tickmark.LOG.info("[selftest] leaving: {} items, {} measured ticks, {} gap ticks, lastTick {}, game time {}", n,
 							counter.series.total().measuredTicks(), counter.series.total().gapTicks(), counter.lastTick, mc.level.getGameTime());
 					stage = 10;
+					stageStart = ticks;
+				} else if (shotsMode && n >= SHOT_ITEMS) {
+					stage = 20;
 					stageStart = ticks;
 				} else if (!gapMode && n >= TARGET_ITEMS) {
 					next();
@@ -239,6 +244,7 @@ public final class SelfTest {
 					finish(mc, null);
 				}
 			}
+			case 20 -> shots(mc, inStage);
 			case 10 -> {
 				// leave: far enough that the rig's chunks unload (no spawn chunks in 26.3)
 				if (inStage == 1) {
@@ -311,6 +317,61 @@ public final class SelfTest {
 				} else if (inStage > TIMEOUT_TICKS) {
 					finish(mc, "after returning only " + (n - before) + " more items counted (in gap: " + counter.inGap + ")");
 				}
+			}
+			default -> {
+			}
+		}
+	}
+
+	/** Screenshots of the HUD, the world labels and the settings screen, plus a CSV export check. */
+	private static void shots(Minecraft mc, int inStage) {
+		switch (inStage) {
+			case 1 -> {
+				// a second counter: a box around the hopper and chest; and one counting the player's pickups
+				Marking.markBox(mc, Marking.pos(chest), Marking.pos(chest.above(2)));
+				Marking.markSelf(mc);
+				counter.name = "Iron farm";
+				Tickmark.config.hudCounters = dev.tickmark.core.config.TickmarkConfig.HudCounters.ALL;
+			}
+			case 120 -> shot(mc, "shots-hud-all");
+			case 130 -> {
+				try {
+					java.nio.file.Path f = dev.tickmark.client.Commands.export(counter);
+					List<String> lines = java.nio.file.Files.readAllLines(f);
+					Tickmark.LOG.info("[selftest] export {}: {} lines, first row: {}", f.getFileName(), lines.size(), lines.size() > 1 ? lines.get(1) : "-");
+					if (lines.isEmpty() || !lines.getFirst().equals(dev.tickmark.core.CsvExport.HEADER)) {
+						FAILURES.add("export has no header");
+					}
+					long iron = lines.stream().skip(1).filter(l -> l.contains("," + ITEM + ",")).mapToLong(l -> Long.parseLong(l.split(",")[3])).sum();
+					if (iron != counter.series.total().count(ITEM)) {
+						FAILURES.add("export sums " + iron + " iron, the counter has " + counter.series.total().count(ITEM));
+					}
+				} catch (IOException | RuntimeException e) {
+					FAILURES.add("export failed: " + e);
+				}
+			}
+			case 140 -> {
+				Tickmark.config.hudCounters = dev.tickmark.core.config.TickmarkConfig.HudCounters.NEAREST;
+				mc.gui.hud.toggle(); // hide the vanilla HUD (F1): labels only
+			}
+			case 170 -> shot(mc, "shots-labels");
+			case 180 -> {
+				mc.gui.hud.toggle();
+				// open it the way Mod Menu's "Configure" button does: through Tickmark's modmenu entrypoint
+				var screen = net.fabricmc.loader.api.FabricLoader.getInstance()
+						.getEntrypointContainers("modmenu", com.terraformersmc.modmenu.api.ModMenuApi.class).stream()
+						.filter(e -> e.getProvider().getMetadata().getId().equals(Tickmark.MOD_ID))
+						.map(e -> e.getEntrypoint().getModConfigScreenFactory().create(null)).findFirst().orElse(null);
+				if (!(screen instanceof dev.tickmark.client.ConfigScreen)) {
+					FAILURES.add("Mod Menu entrypoint gave " + screen + ", not the Tickmark settings screen");
+					screen = new dev.tickmark.client.ConfigScreen(null);
+				}
+				mc.gui.setScreen(screen);
+			}
+			case 210 -> shot(mc, "shots-config");
+			case 220 -> {
+				mc.gui.setScreen(null);
+				finish(mc, null);
 			}
 			default -> {
 			}

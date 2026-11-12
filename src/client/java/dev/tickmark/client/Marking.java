@@ -35,7 +35,7 @@ public final class Marking {
 		return null;
 	}
 
-	static Pos pos(BlockPos p) {
+	public static Pos pos(BlockPos p) {
 		return new Pos(p.getX(), p.getY(), p.getZ());
 	}
 
@@ -72,7 +72,7 @@ public final class Marking {
 		markBox(mc, a, p);
 	}
 
-	static Optional<Counter> markBox(Minecraft mc, Pos a, Pos b) {
+	public static Optional<Counter> markBox(Minecraft mc, Pos a, Pos b) {
 		Counter c = Counter.box(Tickmark.dimension(mc.level), a, b);
 		if (c.boxVolume() > CounterSet.MAX_BOX_VOLUME) {
 			Tickmark.say("box too big (" + c.boxVolume() + " blocks, max " + CounterSet.MAX_BOX_VOLUME + ")");
@@ -118,7 +118,7 @@ public final class Marking {
 	}
 
 	/** Counts what the player picks up, in this dimension: for AFK farms where the player collects. */
-	static Optional<Counter> markSelf(Minecraft mc) {
+	public static Optional<Counter> markSelf(Minecraft mc) {
 		String dim = Tickmark.dimension(mc.level);
 		for (Counter c : Tickmark.counters.inDimension(dim)) {
 			if (c.kind == Counter.Kind.SELF) {

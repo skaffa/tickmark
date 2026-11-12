@@ -23,6 +23,8 @@ public final class Counter {
 	public Pos boxMin;
 	public Pos boxMax;
 	public boolean paused;
+	/** Shown in the HUD when the HUD is set to "pinned" counters. */
+	public boolean pinned;
 	/** Count items taken out as negative output (PLAN.md 3.1, net mode). */
 	public boolean net;
 	/** When not empty, only these item ids are counted. */
