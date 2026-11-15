@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Turns successive content readings of a counter (item id to count) into gains (PLAN.md section 3.1).
+ * Turns successive content readings of a counter (item id to count) into gains.
  *
  * <p>Default: only rises count. A drop (a player or hopper taking items out) moves the baseline down so
  * the items do not come back as output when the counter refills. In net mode a drop is a negative gain.

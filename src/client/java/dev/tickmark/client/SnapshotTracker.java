@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Multiplayer snapshot method (PLAN.md 3.4), from Gauge's container tracker: the block the player
+ * Multiplayer snapshot method, from Gauge's container tracker: the block the player
  * right-clicked is bound to the container screen that opens, if its slot count matches. A few ticks
  * after opening (contents arrive after the screen) the contents are measured against the last close;
  * on close the contents become the new baseline. Time is the server's game time from the time packets.

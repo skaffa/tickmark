@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Entity counting for one counter in multiplayer (PLAN.md 3.2). The client sees item entities, their
+ * Entity counting for one counter in multiplayer. The client sees item entities, their
  * stack sizes and their removal, but never why they were removed (26.3 {@code RemoveEntitiesPacket}
  * carries ids only). The ledger infers the cause:
  *

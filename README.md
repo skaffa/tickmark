@@ -6,7 +6,7 @@ item: the rate, the total, a per-minute sparkline and whether the rate is rising
 Rates use the game's tick clock, so a lagging server does not hide what the farm really does. No
 server mod, no packets of its own.
 
-![HUD with three counters](media/gallery/1-hud.png)
+![HUD with three counters](https://raw.githubusercontent.com/skaffa/tickmark/ad9447035a8afbb2b3c8323b3e89bcf3a8789ae7/media/gallery/1-hud.png)
 
 ## Use
 
@@ -102,8 +102,6 @@ password `tickmarktest`, `enable-command-block=true`) and connect:
 ./gradlew runClient -Pselftest=entity --args="--username TickTester --quickPlayMultiplayer 127.0.0.1:25566"
 ./gradlew runClient -Pselftest=gap    --args="--username TickTester --quickPlayMultiplayer 127.0.0.1:25566"
 ```
-
-See [PLAN.md](PLAN.md) for the design and what was checked in the 26.3 code.
 
 ## License
 

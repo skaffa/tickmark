@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A marked farm output (PLAN.md section 6): one container, a group of containers, a box area, or the
+ * A marked farm output: one container, a group of containers, a box area, or the
  * player's own inventory. Plain fields for Gson; {@code transient} fields are per-session state.
  */
 public final class Counter {
@@ -25,7 +25,7 @@ public final class Counter {
 	public boolean paused;
 	/** Shown in the HUD when the HUD is set to "pinned" counters. */
 	public boolean pinned;
-	/** Count items taken out as negative output (PLAN.md 3.1, net mode). */
+	/** Count items taken out as negative output. */
 	public boolean net;
 	/** When not empty, only these item ids are counted. */
 	public List<String> filter = new ArrayList<>();

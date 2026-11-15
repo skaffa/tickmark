@@ -4,8 +4,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * Estimates the server's ticks per second from game time stamps and the real time they arrived
- * (PLAN.md section 4). In multiplayer the stamps come from {@code ClientboundSetTimePacket}, which a
+ * Estimates the server's ticks per second from game time stamps and the real time they arrived.
+ * In multiplayer the stamps come from {@code ClientboundSetTimePacket}, which a
  * 26.3 server sends every 20 ticks.
  */
 public final class TpsEstimator {

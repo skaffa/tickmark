@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Marking counters from the crosshair: containers, groups and two-click boxes (PLAN.md section 7). */
+/** Marking counters from the crosshair: containers, groups and two-click boxes. */
 public final class Marking {
 	/** First corner of a box being marked, or null; box mode is on while {@link #boxMode} is true. */
 	static Pos boxCorner;

@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The slow but exact multiplayer check (PLAN.md 3.4): the server sends a container's contents only
+ * The slow but exact multiplayer check: the server sends a container's contents only
  * while the player has it open. The contents when the player closes it are the baseline; the contents
  * when they next open it, minus that baseline, are what the farm added in between (the player's own
  * clicks while it is open fall outside that span). One log per container block; plain fields for

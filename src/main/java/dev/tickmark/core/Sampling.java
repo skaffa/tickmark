@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Turns content readings of a counter into samples (PLAN.md 3.1 and 4). Minecraft-free so the rules
+ * Turns content readings of a counter into samples. Minecraft-free so the rules
  * for baselines, gaps, pauses and time away are unit-tested.
  */
 public final class Sampling {

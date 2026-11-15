@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The HUD panel (PLAN.md section 7): per counter a title with the method tag and trust colour, then
+ * The HUD panel: per counter a title with the method tag and trust colour, then
  * per item the rate at 20 TPS, the total since reset, a sparkline of the window and the trend.
  */
 final class TickmarkHud {

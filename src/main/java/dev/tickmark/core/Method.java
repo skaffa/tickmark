@@ -1,6 +1,6 @@
 package dev.tickmark.core;
 
-/** How a counter measures (PLAN.md section 3); the tag is shown in the HUD and the CSV. */
+/** How a counter measures; the tag is shown in the HUD and the CSV. */
 public enum Method {
 	EXACT("EXACT", true),
 	ENTITY("ENTITY ~", false),

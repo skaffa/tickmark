@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Exact mode (PLAN.md 3.1): in singleplayer and on a LAN host the server runs in this process, so the
+ * Exact mode: in singleplayer and on a LAN host the server runs in this process, so the
  * counters' containers are read on the server thread, as Gauge's ServerPeek does. Every
  * {@code sampleTicks} client ticks one task reads all counters (every dimension) and publishes the
  * readings; the client thread applies them one tick later.

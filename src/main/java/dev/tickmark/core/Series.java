@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * A counter's history: per-game-minute buckets for the last 24 game hours, plus totals since the last
- * reset. All time is game time, so server lag does not lower the rate (PLAN.md section 4). Gap ticks
+ * reset. All time is game time, so server lag does not lower the rate. Gap ticks
  * are kept apart from measured ticks and never count as time with zero output.
  *
  * <p>Plain fields so Gson can save it; not thread-safe.

@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * The three packets the multiplayer methods need (PLAN.md section 1). Each hook runs after
+ * The three packets the multiplayer methods need. Each hook runs after
  * {@code ensureRunningOnSameThread}: the handler is first called on the network thread, which throws
  * there and re-runs it on the client thread. Removal and take hooks run before vanilla applies them,
  * so the entity is still in the level.

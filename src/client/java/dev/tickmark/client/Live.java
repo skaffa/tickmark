@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The multiplayer methods (PLAN.md 3.2, 3.3) and the server clock (section 4). Entities are watched
+ * The multiplayer methods and the server clock. Entities are watched
  * every client tick; samples are closed when a {@code ClientboundSetTimePacket} arrives (every 20
  * server ticks), so the sample clock is the server's game time even when the server lags.
  *

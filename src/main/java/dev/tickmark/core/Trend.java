@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Trend, burstiness and sparkline of one item's per-minute rate (PLAN.md section 5). Only buckets
+ * Trend, burstiness and sparkline of one item's per-minute rate. Only buckets
  * measured for at least half a minute take part, so gaps do not look like a falling rate.
  */
 public final class Trend {
